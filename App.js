@@ -1,35 +1,45 @@
 import React from 'react';
-import { Alert, Button, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default class App extends React.Component {
   state = {
-    x: 0,
-    y: 50,
-    width: 10,
-    height: 10,
-    timesAppeared: 0,
+    tasks: [],
   };
 
   interval = null;
 
-  setDimensions = async () => {
-    fetch('http://rude.su.lt/~ramanauskaite/iip/keturkampis.php')
+  getRandomNumber(limit = 20) {
+    return Math.floor(Math.random() * limit) + 1;
+  }
+
+  setTasks = async () => {
+    fetch('http://rude.su.lt/~ramanauskaite/iip/uzduotys.php')
       .then(response => response.json())
-      .then(({ x, y, width, height }) => {
-        this.setState(prevState => ({
-          width: width || prevState.width,
-          height: height || prevState.height,
-          x: x || prevState.x,
-          y: y || prevState.y,
-          timesAppeared: prevState.timesAppeared + 1,
-        }));
+      .then(tasks => {
+        this.setState({
+          tasks: tasks.map(task => ({
+            ...task,
+            x: this.getRandomNumber(50),
+            y: this.getRandomNumber(20),
+          }))
+        });
       })
       .catch(error => console.log(error));
   };
 
+  updateTaskCords = async () => {
+    this.setState({
+      tasks: this.state.tasks.map(task => ({
+        ...task,
+        x: this.getRandomNumber(50),
+        y: this.getRandomNumber(20),
+      }))
+    })
+  };
+
   onStartPressed = async () => {
-    if(!this.interval) {
-      this.interval = setInterval(() => this.setDimensions(), 1000)
+    if (!this.interval) {
+      this.interval = setInterval(() => this.state.tasks.length ? this.updateTaskCords() : this.setTasks(), 1000)
     }
   };
 
@@ -37,38 +47,34 @@ export default class App extends React.Component {
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = null;
-      this.setState({
-        x: 0,
-        y: 50,
-        width: 10,
-        height: 10,
-        timesAppeared: 0,
-      });
     }
   };
 
-  onFigurePressed = async () => {
-    if(this.interval) {
-      Alert.alert('Hello!', `Your figure appeared ${this.state.timesAppeared} times.`);
+  onTaskPressed = async (task) => {
+    if (this.interval) {
+      Alert.alert('Hello!', `Your task is - ${task.pavadinimas}.`);
     }
   };
 
   render() {
-    const { x, y, width, height } = this.state;
+    const { tasks } = this.state;
+    const tasksComponent = tasks.map(task => (
+      <TouchableOpacity
+        style={{
+          ...styles.task,
+          top: `${task.x}%`,
+          left: `${task.y}%`,
+        }}
+        key={task.id}
+        onPress={() => this.onTaskPressed(task)}>
+        <Text>{task.terminas}</Text>
+      </TouchableOpacity>
+    ));
 
     return (
       <View style={styles.container}>
-        <View style={styles.figureContainer}>
-          <TouchableOpacity
-            style={{
-              ...styles.figure,
-              width: width * 10,
-              height: height * 10,
-              top: `${y}%`,
-              left: `${x}%`,
-            }}
-            onPress={this.onFigurePressed}>
-          </TouchableOpacity>
+        <View style={styles.tasksContainer}>
+          {tasksComponent}
         </View>
         <View style={styles.controlsContainer}>
           <Button
@@ -94,11 +100,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  figureContainer: {
+  tasksContainer: {
     flex: 5,
     zIndex: 1,
   },
-  figure: {
+  task: {
     position: 'absolute',
     borderWidth: 3,
     borderColor: 'green',
